@@ -90,9 +90,3 @@ func Question2(filepath string, tryCount int64) {
 
 	ExportFailureList(failureList)
 }
-
-type FailureIPAddrDatum struct {
-	FailureListIndex int64
-	TryCount         int64
-	StartTime        string
-}

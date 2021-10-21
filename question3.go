@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
 // Question2 is: 設問2の処理
-func Question3(filepath string, tryCount int64, overloadTime int64) {
+func Question3(filepath string, tryCount int64, overloadTime float64, overloadCount int64) {
 	file, err := os.Open(filepath)
 
 	if err != nil {
@@ -22,6 +23,10 @@ func Question3(filepath string, tryCount int64, overloadTime int64) {
 	var failureIpAddrs map[string]*FailureIPAddrDatum = map[string]*FailureIPAddrDatum{}
 
 	var failureList []*FailureServerDatum
+
+	var overloadIPAddrs map[string]*OverloadIPAddrDatum = map[string]*OverloadIPAddrDatum{}
+
+	var overloadList []*OverloadServerDatum
 
 	for fileScanner.Scan() {
 		logLine := fileScanner.Text()
@@ -80,6 +85,51 @@ func Question3(filepath string, tryCount int64, overloadTime int64) {
 				1,
 				splitted[0],
 			}
+			// 故障の場合は以降の処理は行わない
+			continue
+		}
+
+		resTime, err := strconv.ParseInt(splitted[2], 10, 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		// 過負荷mapに存在するか
+		if val, ok := overloadIPAddrs[ipAddr]; ok {
+			val.ResponseTime = append(val.ResponseTime, resTime)
+			switch {
+			case val.ResponseNum+1 < overloadCount:
+				// まだ過負荷でない
+				val.ResponseNum++
+			case overloadCount <= val.ResponseNum+1:
+				// 過負荷か確認
+				if overloadTime < float64(SumArray(val.ResponseTime))/float64(overloadCount) {
+					if val.OverloadListIndex == -1 {
+						overloadList = append(overloadList, &OverloadServerDatum{
+							ipAddr,
+							val.StartTime,
+							"",
+						})
+						overloadIPAddrs[ipAddr].OverloadListIndex = int64(len(overloadList) - 1)
+					}
+
+				} else {
+					if 0 <= val.OverloadListIndex {
+						overloadList[val.OverloadListIndex].EndFailureTime = splitted[0]
+						delete(overloadIPAddrs, ipAddr)
+					}
+				}
+
+				val.ResponseTime = append(val.ResponseTime[2:], resTime)
+			}
+		} else {
+			// 過負荷mapに存在しない場合は入れる
+			overloadIPAddrs[ipAddr] = &OverloadIPAddrDatum{
+				[]int64{resTime},
+				1,
+				splitted[0],
+				-1,
+			}
 		}
 	}
 
@@ -89,4 +139,5 @@ func Question3(filepath string, tryCount int64, overloadTime int64) {
 	}
 
 	ExportFailureList(failureList)
+	ExportOverloadList(overloadList)
 }

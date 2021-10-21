@@ -64,9 +64,3 @@ func Question1(filepath string) {
 
 	ExportFailureList(failureList)
 }
-
-type FailureServerDatum struct {
-	IpAddress        string
-	StartFailureTime string
-	EndFailureTime   string
-}
