@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 )
 
 // Question2 is: 設問2の処理
@@ -20,15 +19,7 @@ func Question2(filepath string, tryCount int64) {
 
 	fileScanner := bufio.NewScanner(file)
 
-	var failureIpAddrs map[string]struct {
-		FailureListIndex int64
-		TryCount         int64
-		StartTime        string
-	} = map[string]struct {
-		FailureListIndex int64
-		TryCount         int64
-		StartTime        string
-	}{}
+	var failureIpAddrs map[string]*FailureIPAddrDatum = map[string]*FailureIPAddrDatum{}
 
 	var failureList []*FailureServerDatum
 
@@ -57,27 +48,12 @@ func Question2(filepath string, tryCount int64) {
 						val.StartTime,
 						"",
 					})
-					failureIpAddrs[ipAddr] = struct {
-						FailureListIndex int64
-						TryCount         int64
-						StartTime        string
-					}{
-						int64(len(failureList) - 1),
-						val.TryCount + 1,
-						val.StartTime,
-					}
+					failureIpAddrs[ipAddr].TryCount = val.TryCount + 1
+					failureIpAddrs[ipAddr].FailureListIndex = int64(len(failureList) - 1)
 				case tryCount < val.TryCount:
 					// pingが規定回数以上通ってない場合は何もしない
 				case val.TryCount < tryCount:
-					failureIpAddrs[ipAddr] = struct {
-						FailureListIndex int64
-						TryCount         int64
-						StartTime        string
-					}{
-						0,
-						val.TryCount + 1,
-						val.StartTime,
-					}
+					failureIpAddrs[ipAddr].TryCount = val.TryCount + 1
 				}
 				continue
 			}
@@ -99,11 +75,7 @@ func Question2(filepath string, tryCount int64) {
 
 		if splitted[2] == "-" {
 			// 故障（pingが通らない）の場合は故障マップにIPアドレスを追加する
-			failureIpAddrs[ipAddr] = struct {
-				FailureListIndex int64
-				TryCount         int64
-				StartTime        string
-			}{
+			failureIpAddrs[ipAddr] = &FailureIPAddrDatum{
 				0,
 				1,
 				splitted[0],
@@ -119,22 +91,8 @@ func Question2(filepath string, tryCount int64) {
 	ExportFailureList(failureList)
 }
 
-func ExportFailureList(failureList []*FailureServerDatum) {
-	for _, v := range failureList {
-		var endTime string
-		if v.EndFailureTime == "" {
-			endTime = "故障中"
-		} else {
-			// pingが返ってきた寸前までが故障期間
-			formatted, err := time.Parse("20060102150405", v.EndFailureTime)
-
-			if err != nil {
-				log.Printf("ログの日付形式が異常です。ログ: %s", v.EndFailureTime)
-			}
-
-			endTime = formatted.Add(-time.Second).Format("20060102150405")
-		}
-
-		log.Printf("IPアドレス: %s, 故障期間: %s - %s", v.IpAddress, v.StartFailureTime, endTime)
-	}
+type FailureIPAddrDatum struct {
+	FailureListIndex int64
+	TryCount         int64
+	StartTime        string
 }
