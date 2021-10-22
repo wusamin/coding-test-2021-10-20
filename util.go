@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// ExportFailureList is: 故障サーバーリストをログに出力する
 func ExportFailureList(failureList []*FailureServerDatum) {
 	for _, v := range failureList {
 		var endTime string
@@ -25,6 +26,7 @@ func ExportFailureList(failureList []*FailureServerDatum) {
 	}
 }
 
+// ExportOverloadList is: 過負荷サーバーのリストをログに出力する
 func ExportOverloadList(overloadList []*OverloadServerDatum) {
 	for _, v := range overloadList {
 		var endTime string
@@ -45,6 +47,7 @@ func ExportOverloadList(overloadList []*OverloadServerDatum) {
 	}
 }
 
+// SumArray is: 配列の合計値を取得する
 func SumArray(slice []int64) int64 {
 	var ret int64
 	for _, v := range slice {
