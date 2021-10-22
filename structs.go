@@ -28,3 +28,19 @@ type FailureServerDatum struct {
 	StartFailureTime string
 	EndFailureTime   string
 }
+
+type FailureSubnetDatum struct {
+	Subnet           string
+	StartFailureTime string
+	EndFailureTime   string
+}
+
+type FailureSubnetMapDatum struct {
+	FailureIP      map[string]bool
+	FaluireTimeMap map[string]*FaluireTimeDatum
+}
+
+type FaluireTimeDatum struct {
+	FailureStartTime string
+	FaliureServerNum int64
+}

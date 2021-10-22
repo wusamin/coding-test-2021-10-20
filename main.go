@@ -34,5 +34,10 @@ func main() {
 			return
 		}
 		Question3(*file, int64(*pingCount), float64(*overloadTime), int64(*overloadCount))
+	case 4:
+		if *pingCount < 0 {
+			return
+		}
+		Question4(*file, int64(*pingCount))
 	}
 }

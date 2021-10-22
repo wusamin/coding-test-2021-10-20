@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Question4 is: 設問2の処理
@@ -22,6 +25,8 @@ func Question4(filepath string, tryCount int64) {
 	var failureIpAddrs map[string]*FailureIPAddrDatum = map[string]*FailureIPAddrDatum{}
 
 	var failureList []*FailureServerDatum
+
+	var failureSubnet map[string]*FailureSubnetMapDatum = map[string]*FailureSubnetMapDatum{}
 
 	for fileScanner.Scan() {
 		logLine := fileScanner.Text()
@@ -50,6 +55,25 @@ func Question4(filepath string, tryCount int64) {
 					})
 					failureIpAddrs[ipAddr].TryCount = val.TryCount + 1
 					failureIpAddrs[ipAddr].FailureListIndex = int64(len(failureList) - 1)
+					ipSplitted := strings.Split(splitted[1], "/")
+					subnetMask, err := strconv.ParseInt(ipSplitted[1], 10, 64)
+					if err != nil {
+						// サブネットマスクに数値以外が入っている場合はpanicにする
+						panic(err)
+					}
+
+					subnet := getSubnet(ipSplitted[0], subnetMask)
+
+					// サブネットmapの故障IPmapを確認
+					if falilureIP, existsKey := failureSubnet[subnet].FaluireTimeMap[splitted[0]]; existsKey {
+						// 既に時刻のキーが存在する場合は
+						falilureIP.FaliureServerNum++
+					} else {
+						failureSubnet[subnet].FaluireTimeMap[splitted[0]] = &FaluireTimeDatum{
+							val.StartTime,
+							1,
+						}
+					}
 				case tryCount < val.TryCount:
 					// pingが規定回数以上通ってない場合は何もしない
 				case val.TryCount < tryCount:
@@ -63,11 +87,29 @@ func Question4(filepath string, tryCount int64) {
 				case tryCount <= val.TryCount:
 					failureList[val.FailureListIndex].EndFailureTime = splitted[0]
 					delete(failureIpAddrs, ipAddr)
+					ipSplitted := strings.Split(splitted[1], "/")
+					subnetMask, err := strconv.ParseInt(ipSplitted[1], 10, 64)
+					if err != nil {
+						// サブネットマスクに数値以外が入っている場合はpanicにする
+						panic(err)
+					}
+
+					subnet := getSubnet(ipSplitted[0], subnetMask)
+
+					// サブネットmapの故障IPmapを確認
+					if falilureIP, existsKey := failureSubnet[subnet].FaluireTimeMap[splitted[0]]; existsKey {
+						// 既に時刻のキーが存在する場合は
+						falilureIP.FaliureServerNum++
+					} else {
+						failureSubnet[subnet].FaluireTimeMap[splitted[0]] = &FaluireTimeDatum{
+							val.StartTime,
+							1,
+						}
+					}
 				case val.TryCount < tryCount:
 					// 規定回数未満でpingが通った場合は故障mapから削除
 					delete(failureIpAddrs, ipAddr)
 				}
-
 			}
 			// 故障しているIPは復帰するまで処理不要
 			continue
@@ -81,6 +123,27 @@ func Question4(filepath string, tryCount int64) {
 				splitted[0],
 			}
 		}
+
+		ipSplitted := strings.Split(splitted[1], "/")
+		subnetMask, err := strconv.ParseInt(ipSplitted[1], 10, 64)
+		if err != nil {
+			// サブネットマスクに数値以外が入っている場合はpanicにする
+			panic(err)
+		}
+
+		subnet := getSubnet(ipSplitted[0], subnetMask)
+		log.Printf("サブネット追加: %v", subnet)
+
+		if v, ok := failureSubnet[subnet]; ok {
+			// IPを保持したいだけのため、値は何でもよい
+			v.FailureIP[splitted[1]] = true
+		} else {
+			// サブネットmapにサブネットを追加
+			failureSubnet[subnet] = &FailureSubnetMapDatum{
+				map[string]bool{splitted[1]: true},
+				map[string]*FaluireTimeDatum{},
+			}
+		}
 	}
 
 	// ファイル読込中にエラーが起きた場合のハンドリング
@@ -89,4 +152,71 @@ func Question4(filepath string, tryCount int64) {
 	}
 
 	ExportFailureList(failureList)
+	exportFailureSubnetList(getFailureSubnet(failureSubnet))
+}
+
+func getSubnet(ipAddr string, subnetMask int64) string {
+	s := subnetMask / 8
+	ip := strings.Split(ipAddr, ".")
+
+	return strings.Join(ip[0:s], ".")
+}
+
+func exportFailureSubnetList(failureSubnetList []*FailureSubnetDatum) {
+	for _, v := range failureSubnetList {
+		var endTime string
+		if v.EndFailureTime == "" {
+			endTime = "スイッチ故障中"
+		} else {
+			endTime = v.EndFailureTime
+		}
+		log.Printf("サブネット：%v, 故障期間: %v - %v", v.Subnet, v.StartFailureTime, endTime)
+	}
+}
+
+func getFailureSubnet(failureSubnet map[string]*FailureSubnetMapDatum) []*FailureSubnetDatum {
+	var subnetList []*FailureSubnetDatum
+
+	for subnet := range failureSubnet {
+		log.Printf("ループ、サブネット：%v", subnet)
+		failureTimes := make([]string, 0, len(failureSubnet[subnet].FaluireTimeMap))
+		for k := range failureSubnet[subnet].FaluireTimeMap {
+			failureTimes = append(failureTimes, k)
+		}
+		sort.Strings(failureTimes)
+
+		// サブネット内で記録されたIPの数を取得
+		ipNum := int64(len(failureSubnet[subnet].FailureIP))
+
+		// サブネットが故障状態かどうか
+		isBreaking := false
+
+		for _, failureTime := range failureTimes {
+			// 故障IPの台数がサブネット内IPリストと一致するか
+			if failureSubnet[subnet].FaluireTimeMap[failureTime].FaliureServerNum == ipNum {
+				// サブネット故障リストに故障時間を追加
+				subnetList = append(subnetList, &FailureSubnetDatum{
+					subnet,
+					failureSubnet[subnet].FaluireTimeMap[failureTime].FailureStartTime,
+					"",
+				})
+				isBreaking = true
+			} else {
+				if isBreaking {
+					// pingが返ってきた寸前までが故障期間
+					formatted, err := time.Parse("20060102150405", failureTime)
+
+					if err != nil {
+						log.Printf("ログの日付形式が異常です。ログ: %s", failureTime)
+						break
+					}
+
+					subnetList[len(subnetList)-1].EndFailureTime = formatted.Add(-time.Second).Format("20060102150405")
+				}
+			}
+		}
+	}
+
+	return subnetList
+
 }
