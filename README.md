@@ -34,3 +34,6 @@
     # 例：設問3の処理を実行する。
     go run ./ -file ./testdata/question3/server.log -question 3 -ping-count 3 -overload-time 5 -overload-count 3
     ```
+
+## テスト
+テスト実施については、`テストについて.md`をご参照ください。
