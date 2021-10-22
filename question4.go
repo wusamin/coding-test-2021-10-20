@@ -71,6 +71,7 @@ func Question4(filepath string, tryCount int64) {
 					} else {
 						failureSubnet[subnet].FaluireTimeMap[splitted[0]] = &FaluireTimeDatum{
 							val.StartTime,
+							"",
 							1,
 						}
 					}
@@ -102,6 +103,7 @@ func Question4(filepath string, tryCount int64) {
 						falilureIP.FaliureServerNum++
 					} else {
 						failureSubnet[subnet].FaluireTimeMap[splitted[0]] = &FaluireTimeDatum{
+							"",
 							val.StartTime,
 							1,
 						}
@@ -132,7 +134,6 @@ func Question4(filepath string, tryCount int64) {
 		}
 
 		subnet := getSubnet(ipSplitted[0], subnetMask)
-		log.Printf("サブネット追加: %v", subnet)
 
 		if v, ok := failureSubnet[subnet]; ok {
 			// IPを保持したいだけのため、値は何でもよい
@@ -155,6 +156,7 @@ func Question4(filepath string, tryCount int64) {
 	exportFailureSubnetList(getFailureSubnet(failureSubnet))
 }
 
+// getSubnet is: IPアドレスとサブネットマスクより、サブネット部分を取得する
 func getSubnet(ipAddr string, subnetMask int64) string {
 	s := subnetMask / 8
 	ip := strings.Split(ipAddr, ".")
@@ -162,6 +164,7 @@ func getSubnet(ipAddr string, subnetMask int64) string {
 	return strings.Join(ip[0:s], ".")
 }
 
+// exportFailureSubnetList is: サブネットの故障リストをログに出力する
 func exportFailureSubnetList(failureSubnetList []*FailureSubnetDatum) {
 	for _, v := range failureSubnetList {
 		var endTime string
@@ -170,15 +173,16 @@ func exportFailureSubnetList(failureSubnetList []*FailureSubnetDatum) {
 		} else {
 			endTime = v.EndFailureTime
 		}
-		log.Printf("サブネット：%v, 故障期間: %v - %v", v.Subnet, v.StartFailureTime, endTime)
+		log.Printf("ネットワーク：%v, 故障期間: %v - %v", v.Subnet, v.StartFailureTime, endTime)
 	}
 }
 
+// getFailureSubnet is: サブネットmapより、各サブネットの故障期間をリストで返す
 func getFailureSubnet(failureSubnet map[string]*FailureSubnetMapDatum) []*FailureSubnetDatum {
 	var subnetList []*FailureSubnetDatum
 
 	for subnet := range failureSubnet {
-		log.Printf("ループ、サブネット：%v", subnet)
+
 		failureTimes := make([]string, 0, len(failureSubnet[subnet].FaluireTimeMap))
 		for k := range failureSubnet[subnet].FaluireTimeMap {
 			failureTimes = append(failureTimes, k)
@@ -188,6 +192,13 @@ func getFailureSubnet(failureSubnet map[string]*FailureSubnetMapDatum) []*Failur
 		// サブネット内で記録されたIPの数を取得
 		ipNum := int64(len(failureSubnet[subnet].FailureIP))
 
+		var subneMask string
+
+		for k := range failureSubnet[subnet].FailureIP {
+			subneMask = strings.Split(k, "/")[1]
+			break
+		}
+
 		// サブネットが故障状態かどうか
 		isBreaking := false
 
@@ -196,7 +207,7 @@ func getFailureSubnet(failureSubnet map[string]*FailureSubnetMapDatum) []*Failur
 			if failureSubnet[subnet].FaluireTimeMap[failureTime].FaliureServerNum == ipNum {
 				// サブネット故障リストに故障時間を追加
 				subnetList = append(subnetList, &FailureSubnetDatum{
-					subnet,
+					subnet + "/" + subneMask,
 					failureSubnet[subnet].FaluireTimeMap[failureTime].FailureStartTime,
 					"",
 				})

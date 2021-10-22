@@ -42,5 +42,6 @@ type FailureSubnetMapDatum struct {
 
 type FaluireTimeDatum struct {
 	FailureStartTime string
+	FailureEndTime   string
 	FaliureServerNum int64
 }
