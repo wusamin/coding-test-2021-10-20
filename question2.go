@@ -7,7 +7,12 @@ import (
 	"strings"
 )
 
-// Question2 is: 設問2の処理
+/** Question2 is: 設問2の処理
+ * ネットワークの状態によっては、一時的にpingがタイムアウトしても、一定期間するとpingの応答が復活することがあり、
+ * そのような場合はサーバの故障とみなさないようにしたい。
+ * N回以上連続してタイムアウトした場合にのみ故障とみなすように、設問1のプログラムを拡張せよ。
+ * Nはプログラムのパラメータとして与えられるようにすること。
+ */
 func Question2(filepath string, tryCount int64) {
 	file, err := os.Open(filepath)
 

@@ -8,7 +8,12 @@ import (
 	"strings"
 )
 
-// Question2 is: 設問2の処理
+/** Question2 is: 設問2の処理
+ * サーバが返すpingの応答時間が長くなる場合、サーバが過負荷状態になっていると考えられる。
+ * そこで、直近m回の平均応答時間がtミリ秒を超えた場合は、サーバが過負荷状態になっているとみなそう。
+ * 設問2のプログラムを拡張して、各サーバの過負荷状態となっている期間を出力できるようにせよ。
+ * mとtはプログラムのパラメータとして与えられるようにすること。
+ */
 func Question3(filepath string, tryCount int64, overloadTime float64, overloadCount int64) {
 	file, err := os.Open(filepath)
 
